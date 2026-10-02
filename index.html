@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="vi" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WormGPT AI Chat</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkbg: '#09090b',
+                        cardbg: '#121217',
+                        bordercolor: '#27272a',
+                        accentred: '#dc2626',
+                        glowred: '#ef4444'
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome & Google Fonts -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        code, pre { font-family: 'Fira Code', monospace; }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #09090b; }
+        ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+        
+        /* Glow animations */
+        @keyframes pulse-glow {
+            0%, 100% { filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.6)); }
+            50% { filter: drop-shadow(0 0 20px rgba(239, 68, 68, 0.9)); }
+        }
+        .devil-logo { animation: pulse-glow 3s infinite ease-in-out; }
+        
+        /* Particle canvas styling */
+        #particleCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+        .app-content { position: relative; z-index: 10; }
+    </style>
+</head>
+<body class="bg-darkbg text-zinc-100 h-screen overflow-hidden flex flex-col selection:bg-red-600 selection:text-white">
+
+    <canvas id="particleCanvas"></canvas>
+
+    <div id="authModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 hidden">
+        <div class="bg-cardbg border border-bordercolor w-full max-w-md rounded-2xl p-6 shadow-2xl relative overflow-hidden">
+            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-red-600 via-rose-500 to-red-700"></div>
+            
+            <!-- Logo Header in Auth -->
+            <div class="text-center mb-6">
+                <div class="inline-block devil-logo mb-2">
+                    <!-- Glowing Red Devil SVG Logo -->
+                    <svg width="56" height="56" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Horns -->
+                        <path d="M30 35L15 15C15 15 28 25 35 32Z" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+                        <path d="M70 35L85 15C85 15 72 25 65 32Z" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+                        <!-- Head -->
+                        <circle cx="50" cy="55" r="28" fill="#18181b" stroke="#ef4444" stroke-width="3"/>
+                        <!-- Eyes -->
+                        <path d="M38 50L45 53L40 57Z" fill="#ef4444"/>
+                        <path d="M62 50L55 53L60 57Z" fill="#ef4444"/>
+                        <!-- Smile -->
+                        <path d="M40 68Q50 78 60 68" stroke="#ef4444" stroke-width="3" stroke-linecap="round" fill="none"/>
+                        <!-- Spiral Tail -->
+                        <path d="M50 83C50 95 75 90 70 75C66 65 55 70 60 60" stroke="#ef4444" stroke-width="3" stroke-linecap="round" fill="none"/>
+                    </svg>
+                </div>
+                <h2 id="authTitle" class="text-2xl font-bold tracking-tight text-white">Đăng nhập WormGPT</h2>
+                <p class="text-xs text-zinc-400 mt-1">Hệ thống AI cao cấp & Bảo mật tuyệt đối</p>
+            </div>
+
+            <!-- Auth Tabs -->
+            <div class="flex border-b border-bordercolor mb-6">
+                <button onclick="switchAuthTab('login')" id="tabLogin" class="flex-1 pb-3 text-sm font-semibold text-red-500 border-b-2 border-red-500 transition">Đăng nhập</button>
+                <button onclick="switchAuthTab('register')" id="tabRegister" class="flex-1 pb-3 text-sm font-semibold text-zinc-400 hover:text-zinc-200 transition">Đăng ký</button>
+            </div>
+
+            <!-- Form -->
+            <form id="authForm" onsubmit="handleAuthSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-medium text-zinc-400 mb-1">Tên tài khoản (Username)</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-zinc-500"><i class="fa-solid fa-user"></i></span>
+                        <input type="text" id="usernameInput" required placeholder="Nhập username (Admin cho tài khoản đặc biệt)" class="w-full bg-zinc-900 border border-bordercolor rounded-xl py-2.5 pl-10 pr-4 text-sm text-zinc-100 focus:outline-none focus:border-red-500 transition">
+                    </div>
+                    <p id="usernameHint" class="text-[10px] text-zinc-500 mt-1 hidden">Tài khoản "Admin" có mật khẩu mặc định là "000".</p>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-zinc-400 mb-1">Mật khẩu (Password)</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-zinc-500"><i class="fa-solid fa-lock"></i></span>
+                        <input type="password" id="passwordInput" required placeholder="••••••••" class="w-full bg-zinc-900 border border-bordercolor rounded-xl py-2.5 pl-10 pr-4 text-sm text-zinc-100 focus:outline-none focus:border-red-500 transition">
+                    </div>
+                </div>
+
+                <button type="submit" id="authSubmitBtn" class="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2.5 rounded-xl transition shadow-lg shadow-red-900/30 text-sm">
+                    Đăng nhập ngay
+                </button>
+            </form>
+
+            <div class="mt-6">
+                <div class="relative flex py-2 items-center">
+                    <div class="flex-grow border-t border-bordercolor"></div>
+                    <span class="flex-shrink mx-4 text-zinc-500 text-xs">hoặc tiếp tục với</span>
+                    <div class="flex-grow border-t border-bordercolor"></div>
+                </div>
+
+                <button onclick="handleGoogleSignIn()" class="mt-3 w-full bg-zinc-900 hover:bg-zinc-800 border border-bordercolor text-zinc-200 py-2.5 rounded-xl flex items-center justify-center gap-3 text-sm font-medium transition">
+                    <i class="fa-brands fa-google text-red-500"></i> Đăng nhập với Google
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-content flex h-screen w-full overflow-hidden">
+        
+        <aside id="sidebar" class="w-72 bg-cardbg border-r border-bordercolor flex flex-col transition-all duration-300 z-30 md:relative absolute inset-y-0 left-0 transform -translate-x-full md:translate-x-0">
+            <!-- Sidebar Header -->
+            <div class="p-4 border-b border-bordercolor flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="devil-logo">
+                        <svg width="32" height="32" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M30 35L15 15C15 15 28 25 35 32Z" fill="#ef4444"/>
+                            <path d="M70 35L85 15C85 15 72 25 65 32Z" fill="#ef4444"/>
+                            <circle cx="50" cy="55" r="28" fill="#18181b" stroke="#ef4444" stroke-width="3"/>
+                            <path d="M38 50L45 53L40 57Z" fill="#ef4444"/>
+                            <path d="M62 50L55 53L60 57Z" fill="#ef4444"/>
+                            <path d="M40 68Q50 78 60 68" stroke="#ef4444" stroke-width="3" stroke-linecap="round" fill="none"/>
+                            <path d="M50 83C50 95 75 90 70 75C66 65 55 70 60 60" stroke="#ef4444" stroke-width="3" stroke-linecap="round" fill="none"/>
+                        </svg>
+                    </div>
+                    <span class="font-bold text-lg tracking-tight text-white">WormGPT <span class="text-red-500 text-xs px-1.5 py-0.5 bg-red-950/80 rounded border border-red-800">AI</span></span>
+                </div>
+                <button onclick="toggleSidebar()" class="text-zinc-400 hover:text-white md:hidden">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- New Chat Button -->
+            <div class="p-3">
+                <button onclick="createNewChat()" class="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition shadow-md shadow-red-900/20 text-sm">
+                    <i class="fa-solid fa-plus text-xs"></i> Đoạn chat mới
+                </button>
+            </div>
+
+            <!-- Chat History List -->
+            <div id="chatHistoryList" class="flex-1 overflow-y-auto px-3 py-2 space-y-1">
+                <!-- Populated dynamically -->
+            </div>
+
+            <!-- User Profile & Admin Badge -->
+            <div class="p-3 border-t border-bordercolor flex items-center justify-between bg-zinc-900/40">
+                <div class="flex items-center gap-3 overflow-hidden">
+                    <div id="userAvatar" class="w-9 h-9 rounded-xl bg-gradient-to-tr from-red-600 to-rose-500 flex items-center justify-center text-white font-bold text-sm shadow">
+                        A
+                    </div>
+                    <div class="overflow-hidden">
+                        <p id="userNameDisplay" class="text-sm font-medium text-zinc-200 truncate">Admin</p>
+                        <p id="userRoleDisplay" class="text-[10px] text-red-400 font-semibold uppercase tracking-wider">Hệ thống Quản trị</p>
+                    </div>
+                </div>
+                <button onclick="logout()" title="Đăng xuất" class="text-zinc-400 hover:text-red-400 p-2 rounded-lg hover:bg-zinc-800 transition">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                </button>
+            </div>
+        </aside>
+
+        <main class="flex-1 flex flex-col h-full overflow-hidden bg-darkbg">
+            
+            <header class="h-16 border-b border-bordercolor bg-cardbg/80 backdrop-blur-md px-4 flex items-center justify-between z-20">
+                <div class="flex items-center gap-3">
+                    <button onclick="toggleSidebar()" class="text-zinc-400 hover:text-white p-2 rounded-lg hover:bg-zinc-800 transition">
+                        <i class="fa-solid fa-bars text-lg"></i>
+                    </button>
+                    
+                    <!-- Multi-Engine Switcher -->
+                    <div class="flex items-center bg-zinc-900 border border-bordercolor rounded-xl p-1 gap-1">
+                        <button onclick="switchEngine('WormGPT')" id="engineWormGPT" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-600 text-white transition shadow">
+                            WormGPT
+                        </button>
+                        <button onclick="switchEngine('ChatGPT')" id="engineChatGPT" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-zinc-400 hover:text-white transition">
+                            ChatGPT
+                        </button>
+                        <button onclick="switchEngine('Grok')" id="engineGrok" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-zinc-400 hover:text-white transition">
+                            Grok
+                        </button>
+                        <button onclick="switchEngine('Remini')" id="engineRemini" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-zinc-400 hover:text-white transition">
+                            Remini
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Right Header Actions (API key or Info) -->
+                <div class="flex items-center gap-2">
+                    <button onclick="openSettingsModal()" class="text-zinc-400 hover:text-zinc-200 bg-zinc-900 hover:bg-zinc-800 border border-bordercolor px-3 py-1.5 rounded-xl text-xs font-medium flex items-center gap-2 transition">
+                        <i class="fa-solid fa-gear text-red-500"></i> Cài đặt API
+                    </button>
+                </div>
+            </header>
+
+            <div id="chatMessages" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 max-w-4xl w-full mx-auto">
+                <!-- Welcome greeting -->
+                <div class="flex items-start gap-4 max-w-2xl mx-auto mt-12 text-center flex-col items-center">
+                    <div class="devil-logo w-16 h-16 bg-red-950/40 border border-red-800/60 rounded-2xl flex items-center justify-center mb-2">
+                        <svg width="40" height="40" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M30 35L15 15C15 15 28 25 35 32Z" fill="#ef4444"/>
+                            <path d="M70 35L85 15C85 15 72 25 65 32Z" fill="#ef4444"/>
+                            <circle cx="50" cy="55" r="28" fill="#18181b" stroke="#ef4444" stroke-width="3"/>
+                            <path d="M38 50L45 53L40 57Z" fill="#ef4444"/>
+                            <path d="M62 50L55 53L60 57Z" fill="#ef4444"/>
+                            <path d="M40 68Q50 78 60 68" stroke="#ef4444" stroke-width="3" stroke-linecap="round" fill="none"/>
+                            <path d="M50 83C50 95 75 90 70 75C66 65 55 70 60 60" stroke="#ef4444" stroke-width="3" stroke-linecap="round" fill="none"/>
+                        </svg>
+                    </div>
+                    <h1 class="text-2xl md:text-3xl font-bold tracking-tight text-white">WormGPT AI Trợ lý Thông minh</h1>
+                    <p class="text-sm text-zinc-400">Sẵn sàng hỗ trợ bạn lập trình, sáng tạo nội dung, tạo hình ảnh/video và xử lý các tác vụ phức tạp với Gemini API thông minh.</p>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 w-full mt-6 text-left">
+                        <div onclick="sendPresetPrompt('Viết một đoạn code Python Flask hoàn chỉnh cho website bán hàng')" class="bg-cardbg border border-bordercolor hover:border-red-500/50 p-4 rounded-xl cursor-pointer transition group">
+                            <p class="text-xs font-semibold text-red-500 mb-1"><i class="fa-solid fa-code mr-1"></i> Lập trình</p>
+                            <p class="text-xs text-zinc-300 group-hover:text-white">Viết code Flask hoàn chỉnh cho app bán hàng...</p>
+                        </div>
+                        <div onclick="sendPresetPrompt('Tạo một bức ảnh cyberpunk cực kỳ chi tiết với neon light và mưa')" class="bg-cardbg border border-bordercolor hover:border-red-500/50 p-4 rounded-xl cursor-pointer transition group">
+                            <p class="text-xs font-semibold text-red-500 mb-1"><i class="fa-solid fa-image mr-1"></i> Tạo ảnh AI</p>
+                            <p class="text-xs text-zinc-300 group-hover:text-white">Tạo ảnh cyberpunk chi tiết với neon light...</p>
+                        </div>
+                        <div onclick="sendPresetPrompt('Phân tích thị trường công nghệ và xu hướng AI mới nhất năm 2026')" class="bg-cardbg border border-bordercolor hover:border-red-500/50 p-4 rounded-xl cursor-pointer transition group">
+                            <p class="text-xs font-semibold text-red-500 mb-1"><i class="fa-solid fa-brain mr-1"></i> Phân tích</p>
+                            <p class="text-xs text-zinc-300 group-hover:text-white">Phân tích xu hướng AI mới nhất 2026...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 bg-darkbg border-t border-bordercolor">
+                <div class="max-w-4xl mx-auto bg-cardbg border border-bordercolor rounded-2xl p-3 shadow-xl relative">
+                    
+                    <!-- Preview Attached Image Area -->
+                    <div id="imagePreviewContainer" class="hidden mb-2 flex items-center gap-2">
+                        <div class="relative inline-block">
+                            <img id="previewImg" src="" alt="Upload preview" class="w-16 h-16 object-cover rounded-xl border border-red-500">
+                            <button onclick="removeAttachedImage()" class="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-700 shadow"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                        <span class="text-xs text-zinc-400">Đã đính kèm ảnh để phân tích hoặc chỉnh sửa</span>
+                    </div>
+
+                    <textarea id="userInput" rows="2" onkeydown="handleKeyDown(event)" placeholder="Nhập tin nhắn cho WormGPT AI (Hỗ trợ tiếng Việt)..." class="w-full bg-transparent text-zinc-100 placeholder-zinc-500 text-sm focus:outline-none resize-none px-2"></textarea>
+                    
+                    <!-- Bottom Input Controls Row -->
+                    <div class="flex items-center justify-between pt-2 border-t border-zinc-800 mt-2">
+                        <div class="flex items-center gap-2">
+                            <!-- Image Upload Button -->
+                            <label class="cursor-pointer text-zinc-400 hover:text-red-400 p-2 rounded-xl hover:bg-zinc-800/60 transition text-sm flex items-center gap-1.5" title="Tải ảnh lên">
+                                <i class="fa-solid fa-image"></i>
+                                <span class="text-xs hidden sm:inline">Tải ảnh</span>
+                                <input type="file" id="imageUploadInput" accept="image/*" onchange="handleImageUpload(event)" class="hidden">
+                            </label>
+
+                            <!-- Mode Selector Menu Button -->
+                            <div class="relative">
+                                <button onclick="toggleModeMenu()" id="currentModeBtn" class="bg-zinc-900 border border-bordercolor text-zinc-300 hover:text-white px-3 py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 transition">
+                                    <i class="fa-solid fa-crown text-amber-400"></i>
+                                    <span id="currentModeName">Free</span>
+                                    <i class="fa-solid fa-chevron-down text-[10px] ml-1"></i>
+                                </button>
+                                <!-- Mode Dropdown Menu -->
+                                <div id="modeMenu" class="absolute bottom-full left-0 mb-2 w-56 bg-cardbg border border-bordercolor rounded-2xl shadow-2xl py-2 hidden z-40">
+                                    <div class="px-3 py-1 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Chọn Chế độ AI</div>
+                                    <button onclick="setChatMode('Free', 'Miễn phí')" class="w-full text-left px-4 py-2 text-xs text-zinc-300 hover:bg-zinc-800/80 hover:text-white flex items-center justify-between transition">
+                                        <span>Chế độ 1: Free</span>
+                                        <span class="text-[10px] bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400">Miễn phí</span>
+                                    </button>
+                                    <button onclick="setChatMode('Pro ($10)', 'Pro ($10)')" class="w-full text-left px-4 py-2 text-xs text-zinc-300 hover:bg-zinc-800/80 hover:text-white flex items-center justify-between transition">
+                                        <span>Chế độ 2: Pro</span>
+                                        <span class="text-[10px] bg-red-950 text-red-400 px-1.5 py-0.5 rounded border border-red-900">$10</span>
+                                    </button>
+                                    <button onclick="setChatMode('Ultra GPT ($60)', 'Ultra GPT ($60)')" class="w-full text-left px-4 py-2 text-xs text-zinc-300 hover:bg-zinc-800/80 hover:text-white flex items-center justify-between transition">
+                                        <span>Chế độ 3: Ultra GPT</span>
+                                        <span class="text-[10px] bg-red-900/50 text-red-300 px-1.5 py-0.5 rounded border border-red-700">$60</span>
+                                    </button>
+                                    <button onclick="setChatMode('ULTRA v5.0 (700k)', 'ULTRA v5.0 (700.000 VNĐ)')" class="w-full text-left px-4 py-2 text-xs text-zinc-300 hover:bg-zinc-800/80 hover:text-white flex items-center justify-between transition">
+                                        <span>Chế độ 4: ULTRA v5.0</span>
+                                        <span class="text-[10px] bg-gradient-to-r from-red-600 to-amber-600 text-white px-1.5 py-0.5 rounded font-bold">700k VNĐ</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <!-- Thanh sét (Lightning Mode toggle) -->
+                            <button onclick="toggleLightningMode()" id="lightningBtn" title="Chế độ Tốc độ Siêu nhanh (Thanh sét)" class="bg-zinc-900 hover:bg-zinc-800 border border-bordercolor text-zinc-400 hover:text-amber-400 px-3 py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 transition">
+                                <i class="fa-solid fa-bolt text-zinc-500" id="lightningIcon"></i>
+                                <span class="hidden sm:inline">Thanh sét</span>
+                            </button>
+
+                            <!-- Send Button -->
+                            <button onclick="sendMessage()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-md shadow-red-900/30">
+                                <i class="fa-solid fa-paper-plane"></i> Gửi
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="text-center mt-2">
+                    <p class="text-[10px] text-zinc-500">WormGPT AI có thể đưa ra câu trả lời không chính xác hoặc sắc bén. Hãy kiểm tra thông tin quan trọng.</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="previewModal" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col hidden">
+        <div class="bg-cardbg border-b border-bordercolor px-6 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="devil-logo">
+                    <svg width="24" height="24" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M30 35L15 15C15 15 28 25 35 32Z" fill="#ef4444"/>
+                        <path d="M70 35L85 15C85 15 72 25 65 32Z" fill="#ef4444"/>
+                        <circle cx="50" cy="55" r="28" fill="#18181b" stroke="#ef4444" stroke-width="3"/>
+                        <path d="M38 50L45 53L40 57Z" fill="#ef4444"/>
+                        <path d="M62 50L55 53L60 57Z" fill="#ef4444"/>
+                        <path d="M40 68Q50 78 60 68" stroke="#ef4444" stroke-width="3" stroke-linecap="round" fill="none"/>
+                        <path d="M50 83C50 95 75 90 70 75C66 65 55 70 60 60" stroke="#ef4444" stroke-width="3" stroke-linecap="round" fill="none"/>
+                    </svg>
+                </div>
+                <h3 class="text-sm font-bold text-white">WormGPT Live HTML Preview</h3>
+            </div>
+            <button onclick="closePreviewModal()" class="text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded-xl text-xs font-medium transition">
+                <i class="fa-solid fa-xmark mr-1"></i> Đóng Xem Trước
+            </button>
+        </div>
+        <div class="flex-1 bg-white">
+            <iframe id="previewIframe" class="w-full h-full border-0"></iframe>
+        </div>
+    </div>
+
+    <div id="settingsModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 hidden">
+        <div class="bg-cardbg border border-bordercolor w-full max-w-md rounded-2xl p-6 shadow-2xl relative">
+            <h3 class="text-lg font-bold text-white mb-2">Cấu hình API Gemini</h3>
+            <p class="text-xs text-zinc-400 mb-4">Nhập Gemini API Key tùy chỉnh của bạn (hoặc giữ trống để sử dụng key mặc định từ hệ thống).</p>
+            
+            <div class="mb-4">
+                <label class="block text-xs font-medium text-zinc-400 mb-1">Gemini API Key</label>
+                <input type="password" id="customApiKeyInput" placeholder="AIzaSy..." class="w-full bg-zinc-900 border border-bordercolor rounded-xl py-2.5 px-3 text-sm text-zinc-100 focus:outline-none focus:border-red-500 transition">
+            </div>
+
+            <div class="flex justify-end gap-2">
+                <button onclick="closeSettingsModal()" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-4 py-2 rounded-xl text-xs font-medium transition">Huỷ</button>
+                <button onclick="saveSettings()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl text-xs font-medium transition">Lưu cấu hình</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Interactive Mouse Particle & Wave Effect System
+        const canvas = document.getElementById('particleCanvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        let ripples = [];
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        class Particle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.size = Math.random() * 4 + 1;
+                this.speedX = (Math.random() - 0.5) * 6;
+                this.speedY = (Math.random() - 0.5) * 6;
+                this.color = Math.random() > 0.3 ? '#ef4444' : '#ffffff';
+                this.alpha = 1;
+                this.decay = Math.random() * 0.02 + 0.015;
+            }
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                this.alpha -= this.decay;
+            }
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, this.alpha);
+                ctx.fillStyle = this.color;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#ef4444';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        class Ripple {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.radius = 5;
+                this.maxRadius = 80 + Math.random() * 50;
+                this.alpha = 0.8;
+            }
+            update() {
+                this.radius += 2.5;
+                this.alpha -= 0.02;
+            }
+            draw() {
+                if (this.alpha <= 0) return;
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.strokeStyle = '#ef4444';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        let isMouseDown = false;
+        window.addEventListener('mousedown', (e) => {
+            isMouseDown = true;
+            createEffect(e.clientX, e.clientY);
+        });
+        window.addEventListener('mouseup', () => { isMouseDown = false; });
+        window.addEventListener('mousemove', (e) => {
+            if (isMouseDown || Math.random() > 0.6) {
+                createEffect(e.clientX, e.clientY);
+            }
+        });
+        window.addEventListener('touchstart', (e) => {
+            if (e.touches.length > 0) {
+                createEffect(e.touches[0].clientX, e.touches[0].clientY);
+            }
+        });
+        window.addEventListener('touchmove', (e) => {
+            if (e.touches.length > 0) {
+                createEffect(e.touches[0].clientX, e.touches[0].clientY);
+            }
+        });
+
+        function createEffect(x, y) {
+            ripples.push(new Ripple(x, y));
+            for (let i = 0; i < 5; i++) {
+                particles.push(new Particle(x, y));
+            }
+        }
+
+        function animateParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            for (let i = ripples.length - 1; i >= 0; i--) {
+                ripples[i].update();
+                ripples[i].draw();
+                if (ripples[i].alpha <= 0) ripples.splice(i, 1);
+            }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update();
+                particles[i].draw();
+                if (particles[i].alpha <= 0) particles.splice(i, 1);
+            }
+            requestAnimationFrame(animateParticles);
+        }
+        animateParticles();
+
+        // Application State
+        let currentUser = null;
+        let authMode = 'login'; // 'login' or 'register'
+        let currentEngine = 'WormGPT';
+        let currentMode = 'Free';
+        let lightningMode = false;
+        let attachedImageBase64 = null;
+        let chats = [];
+        let currentChatId = null;
+        let customApiKey = '';
+
+        // LocalStorage user database mock
+        function getUsersDB() {
+            const db = localStorage.getItem('wormgpt_users');
+            if (!db) {
+                const initial = [{ username: 'Admin', password: '000', role: 'Admin' }];
+                localStorage.setItem('wormgpt_users', JSON.stringify(initial));
+                return initial;
+            }
+            return JSON.parse(db);
+        }
+
+        function saveUsersDB(users) {
+            localStorage.setItem('wormgpt_users', JSON.stringify(users));
+        }
+
+        // Authentication Logic
+        window.addEventListener('DOMContentLoaded', () => {
+            const activeUser = localStorage.getItem('wormgpt_current_user');
+            if (activeUser) {
+                currentUser = JSON.parse(activeUser);
+                document.getElementById('authModal').classList.add('hidden');
+                initApp();
+            } else {
+                document.getElementById('authModal').classList.remove('hidden');
+            }
+        });
+
+        function switchAuthTab(mode) {
+            authMode = mode;
+            const titleEl = document.getElementById('authTitle');
+            const submitBtn = document.getElementById('authSubmitBtn');
+            const hintEl = document.getElementById('usernameHint');
+            const tabLogin = document.getElementById('tabLogin');
+            const tabRegister = document.getElementById('tabRegister');
+
+            if (mode === 'login') {
+                titleEl.innerText = 'Đăng nhập WormGPT';
+                submitBtn.innerText = 'Đăng nhập ngay';
+                hintEl.classList.remove('hidden');
+                tabLogin.className = 'flex-1 pb-3 text-sm font-semibold text-red-500 border-b-2 border-red-500 transition';
+                tabRegister.className = 'flex-1 pb-3 text-sm font-semibold text-zinc-400 hover:text-zinc-200 transition';
+            } else {
+                titleEl.innerText = 'Đăng ký tài khoản mới';
+                submitBtn.innerText = 'Tạo tài khoản';
+                hintEl.classList.add('hidden');
+                tabRegister.className = 'flex-1 pb-3 text-sm font-semibold text-red-500 border-b-2 border-red-500 transition';
+                tabLogin.className = 'flex-1 pb-3 text-sm font-semibold text-zinc-400 hover:text-zinc-200 transition';
+            }
+        }
+
+        function handleAuthSubmit(event) {
+            event.preventDefault();
+            const username = document.getElementById('usernameInput').value.trim();
+            const password = document.getElementById('passwordInput').value;
+
+            if (!username || !password) return;
+
+            let users = getUsersDB();
+
+            if (authMode === 'register') {
+                if (username.toLowerCase() === 'admin') {
+                    alertBox('Không thể đăng ký tên tài khoản "Admin" vì đã được hệ thống định sẵn.');
+                    return;
+                }
+                const existing = users.find(u => u.username.toLowerCase() === username.toLowerCase());
+                if (existing) {
+                    alertBox('Tên tài khoản này đã tồn tại. Vui lòng chọn tên khác.');
+                    return;
+                }
+                const newUser = { username, password, role: 'User' };
+                users.push(newUser);
+                saveUsersDB(users);
+                currentUser = newUser;
+            } else {
+                // Login
+                if (username === 'Admin' && password === '000') {
+                    currentUser = { username: 'Admin', role: 'Admin' };
+                } else {
+                    const found = users.find(u => u.username === username && u.password === password);
+                    if (!found) {
+                        alertBox('Sai tên tài khoản hoặc mật khẩu!');
+                        return;
+                    }
+                    currentUser = found;
+                }
+            }
+
+            localStorage.setItem('wormgpt_current_user', JSON.stringify(currentUser));
+            document.getElementById('authModal').classList.add('hidden');
+            initApp();
+        }
+
+        function handleGoogleSignIn() {
+            // Simulated Google Sign In
+            currentUser = { username: 'GoogleUser_' + Math.floor(Math.random()*1000), role: 'User' };
+            localStorage.setItem('wormgpt_current_user', JSON.stringify(currentUser));
+            document.getElementById('authModal').classList.add('hidden');
+            initApp();
+        }
+
+        function logout() {
+            localStorage.removeItem('wormgpt_current_user');
+            currentUser = null;
+            document.getElementById('authModal').classList.remove('hidden');
+        }
+
+        // Custom alert substitute (no native alert)
+        function alertBox(msg) {
+            console.warn(msg);
+            alert(msg); // Fallback or notification box if needed
+        }
+
+        // App Initialization
+        function initApp() {
+            document.getElementById('userNameDisplay').innerText = currentUser.username;
+            document.getElementById('userRoleDisplay').innerText = currentUser.username === 'Admin' ? 'Hệ thống Quản trị' : 'Thành viên VIP';
+            document.getElementById('userAvatar').innerText = currentUser.username.charAt(0).toUpperCase();
+
+            loadChats();
+            if (chats.length === 0) {
+                createNewChat();
+            } else {
+                selectChat(chats[0].id);
+            }
+        }
+
+        // Chat Management
+        function loadChats() {
+            const saved = localStorage.getItem('wormgpt_chats_' + currentUser.username);
+            chats = saved ? JSON.parse(saved) : [];
+            renderChatHistory();
+        }
+
+        function saveChats() {
+            localStorage.setItem('wormgpt_chats_' + currentUser.username, JSON.stringify(chats));
+            renderChatHistory();
+        }
+
+        function renderChatHistory() {
+            const listEl = document.getElementById('chatHistoryList');
+            listEl.innerHTML = '';
+            chats.forEach(chat => {
+                const isActive = chat.id === currentChatId;
+                const div = document.createElement('div');
+                div.className = `group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer transition ${isActive ? 'bg-zinc-800 text-white font-medium border border-bordercolor' : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'}`;
+                div.onclick = () => selectChat(chat.id);
+                div.innerHTML = `
+                    <div class="flex items-center gap-2.5 truncate">
+                        <i class="fa-solid fa-message text-red-500 text-xs"></i>
+                        <span class="truncate">${escapeHtml(chat.title)}</span>
+                    </div>
+                    <button onclick="deleteChat(event, '${chat.id}')" class="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-red-400 p-1 transition"><i class="fa-solid fa-trash text-[10px]"></i></button>
+                `;
+                listEl.appendChild(div);
+            });
+        }
+
+        function createNewChat() {
+            const newChat = {
+                id: 'chat_' + Date.now(),
+                title: 'Cuộc trò chuyện mới',
+                messages: []
+            };
+            chats.unshift(newChat);
+            saveChats();
+            selectChat(newChat.id);
+        }
+
+        function selectChat(id) {
+            currentChatId = id;
+            renderChatHistory();
+            renderMessages();
+        }
+
+        function deleteChat(e, id) {
+            e.stopPropagation();
+            chats = chats.filter(c => c.id !== id);
+            saveChats();
+            if (chats.length > 0) {
+                selectChat(chats[0].id);
+            } else {
+                createNewChat();
+            }
+        }
+
+        // Engine & Mode Switchers
+        function switchEngine(engine) {
+            currentEngine = engine;
+            ['WormGPT', 'ChatGPT', 'Grok', 'Remini'].forEach(eng => {
+                const btn = document.getElementById('engine' + eng);
+                if (eng === engine) {
+                    btn.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-600 text-white transition shadow';
+                } else {
+                    btn.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold text-zinc-400 hover:text-white transition';
+                }
+            });
+        }
+
+        function toggleModeMenu() {
+            const menu = document.getElementById('modeMenu');
+            menu.classList.toggle('hidden');
+        }
+
+        function setChatMode(modeKey, modeDisplayName) {
+            currentMode = modeKey;
+            document.getElementById('currentModeName').innerText = modeDisplayName;
+            document.getElementById('modeMenu').classList.add('hidden');
+        }
+
+        function toggleLightningMode() {
+            lightningMode = !lightningMode;
+            const btn = document.getElementById('lightningBtn');
+            const icon = document.getElementById('lightningIcon');
+            if (lightningMode) {
+                btn.className = 'bg-amber-500/20 border border-amber-500/50 text-amber-400 px-3 py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 transition shadow shadow-amber-500/10';
+                icon.className = 'fa-solid fa-bolt text-amber-400';
+            } else {
+                btn.className = 'bg-zinc-900 hover:bg-zinc-800 border border-bordercolor text-zinc-400 hover:text-amber-400 px-3 py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 transition';
+                icon.className = 'fa-solid fa-bolt text-zinc-500';
+            }
+        }
+
+        // Image Attachment
+        function handleImageUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(uploadEvent) {
+                attachedImageBase64 = uploadEvent.target.result;
+                document.getElementById('previewImg').src = attachedImageBase64;
+                document.getElementById('imagePreviewContainer').classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function removeAttachedImage() {
+            attachedImageBase64 = null;
+            document.getElementById('imagePreviewContainer').classList.add('hidden');
+            document.getElementById('imageUploadInput').value = '';
+        }
+
+        // Send & Gemini API Integration
+        function handleKeyDown(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        }
+
+        function sendPresetPrompt(text) {
+            document.getElementById('userInput').value = text;
+            sendMessage();
+        }
+
+        async function sendMessage() {
+            const inputEl = document.getElementById('userInput');
+            const text = inputEl.value.trim();
+            if (!text && !attachedImageBase64) return;
+
+            const chat = chats.find(c => c.id === currentChatId);
+            if (!chat) return;
+
+            if (chat.messages.length === 0) {
+                chat.title = text.length > 30 ? text.substring(0, 30) + '...' : text;
+            }
+
+            const userMsg = {
+                role: 'user',
+                text: text,
+                image: attachedImageBase64
+            };
+            chat.messages.push(userMsg);
+            inputEl.value = '';
+            const imgToSend = attachedImageBase64;
+            removeAttachedImage();
+            saveChats();
+            renderMessages();
+
+            // Add loading bot message
+            const loadingMsgId = 'loading_' + Date.now();
+            chat.messages.push({
+                role: 'assistant',
+                text: 'Đang xử lý yêu cầu qua Gemini API...',
+                id: loadingMsgId,
+                isLoading: true
+            });
+            renderMessages();
+
+            try {
+                const responseText = await callGeminiAPI(text, imgToSend);
+                // Remove loading and add actual reply
+                chat.messages = chat.messages.filter(m => m.id !== loadingMsgId);
+                chat.messages.push({
+                    role: 'assistant',
+                    text: responseText
+                });
+                saveChats();
+                renderMessages();
+            } catch (err) {
+                chat.messages = chat.messages.filter(m => m.id !== loadingMsgId);
+                chat.messages.push({
+                    role: 'assistant',
+                    text: 'Lỗi kết nối Gemini API: ' + err.message
+                });
+                saveChats();
+                renderMessages();
+            }
+        }
+
+        async function callGeminiAPI(promptText, imageData) {
+            const apiKey = customApiKey || ''; // Canvas runtime provided
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+            let parts = [];
+            if (promptText) {
+                parts.push({ text: `[Engine: ${currentEngine}] [Mode: ${currentMode}] ${promptText}` });
+            }
+            if (imageData) {
+                const base64Data = imageData.split(',')[1];
+                const mimeType = imageData.split(';')[0].split(':')[1] || 'image/png';
+                parts.push({
+                    inlineData: {
+                        mimeType: mimeType,
+                        data: base64Data
+                    }
+                });
+            }
+
+            const payload = {
+                contents: [{ parts: parts }],
+                systemInstruction: {
+                    parts: [{ text: "Bạn là WormGPT AI, một trợ lý trí tuệ nhân tạo cao cấp, sắc bén, trả lời bằng tiếng Việt một cách thông minh, chính xác, có hỗ trợ định dạng Markdown, code blocks (có kèm code HTML runnable nếu cần), và khả năng phân tích hình ảnh chuyên sâu." }]
+                }
+            };
+
+            let response;
+            let attempts = 0;
+            const maxAttempts = 3;
+            let delay = 1000;
+
+            while (attempts < maxAttempts) {
+                try {
+                    response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (response.ok) break;
+                } catch (e) {
+                    // exponential backoff
+                }
+                attempts++;
+                if (attempts >= maxAttempts) throw new Error('Không thể kết nối đến máy chủ Gemini API.');
+                await new Promise(r => setTimeout(r, delay));
+                delay *= 2;
+            }
+
+            const result = await response.json();
+            const candidate = result.candidates?.[0];
+            if (candidate && candidate.content?.parts?.[0]?.text) {
+                return candidate.content.parts[0].text;
+            } else {
+                throw new Error('Phản hồi từ AI không hợp lệ.');
+            }
+        }
+
+        // Render Chat Messages with Code Blocks & Preview
+        function renderMessages() {
+            const container = document.getElementById('chatMessages');
+            const chat = chats.find(c => c.id === currentChatId);
+            if (!chat || chat.messages.length === 0) {
+                container.innerHTML = `
+                    <div class="flex items-start gap-4 max-w-2xl mx-auto mt-12 text-center flex-col items-center">
+                        <div class="devil-logo w-16 h-16 bg-red-950/40 border border-red-800/60 rounded-2xl flex items-center justify-center mb-2">
+                            <svg width="40" height="40" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M30 35L15 15C15 15 28 25 35 32Z" fill="#ef4444"/>
+                                <path d="M70 35L85 15C85 15 72 25 65 32Z" fill="#ef4444"/>
+                                <circle cx="50" cy="55" r="28" fill="#18181b" stroke="#ef4444" stroke-width="3"/>
+                                <path d="M38 50L45 53L40 57Z" fill="#ef4444"/>
+                                <path d="M62 50L55 53L60 57Z" fill="#ef4444"/>
+                                <path d="M40 68Q50 78 60 68" stroke="#ef4444" stroke-width="3" stroke-linecap="round" fill="none"/>
+                                <path d="M50 83C50 95 75 90 70 75C66 65 55 70 60 60" stroke="#ef4444" stroke-width="3" stroke-linecap="round" fill="none"/>
+                            </svg>
+                        </div>
+                        <h1 class="text-2xl md:text-3xl font-bold tracking-tight text-white">WormGPT AI Trợ lý Thông minh</h1>
+                        <p class="text-sm text-zinc-400">Sẵn sàng hỗ trợ bạn lập trình, sáng tạo nội dung, tạo hình ảnh/video và xử lý các tác vụ phức tạp.</p>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 w-full mt-6 text-left">
+                            <div onclick="sendPresetPrompt('Viết một đoạn code Python Flask hoàn chỉnh cho website bán hàng')" class="bg-cardbg border border-bordercolor hover:border-red-500/50 p-4 rounded-xl cursor-pointer transition group">
+                                <p class="text-xs font-semibold text-red-500 mb-1"><i class="fa-solid fa-code mr-1"></i> Lập trình</p>
+                                <p class="text-xs text-zinc-300 group-hover:text-white">Viết code Flask hoàn chỉnh cho app bán hàng...</p>
+                            </div>
+                            <div onclick="sendPresetPrompt('Tạo một bức ảnh cyberpunk cực kỳ chi tiết với neon light và mưa')" class="bg-cardbg border border-bordercolor hover:border-red-500/50 p-4 rounded-xl cursor-pointer transition group">
+                                <p class="text-xs font-semibold text-red-500 mb-1"><i class="fa-solid fa-image mr-1"></i> Tạo ảnh AI</p>
+                                <p class="text-xs text-zinc-300 group-hover:text-white">Tạo ảnh cyberpunk chi tiết với neon light...</p>
+                            </div>
+                            <div onclick="sendPresetPrompt('Phân tích thị trường công nghệ và xu hướng AI mới nhất năm 2026')" class="bg-cardbg border border-bordercolor hover:border-red-500/50 p-4 rounded-xl cursor-pointer transition group">
+                                <p class="text-xs font-semibold text-red-500 mb-1"><i class="fa-solid fa-brain mr-1"></i> Phân tích</p>
+                                <p class="text-xs text-zinc-300 group-hover:text-white">Phân tích xu hướng AI mới nhất 2026...</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = '';
+            chat.messages.forEach((msg, index) => {
+                const isUser = msg.role === 'user';
+                const msgDiv = document.createElement('div');
+                msgDiv.className = `flex gap-4 max-w-3xl mx-auto w-full ${isUser ? 'justify-end' : 'justify-start'}`;
+
+                let avatarHtml = isUser ? 
+                    `<div class="w-8 h-8 rounded-xl bg-zinc-800 border border-bordercolor flex items-center justify-center text-zinc-300 text-xs font-bold flex-shrink-0">${currentUser.username.charAt(0).toUpperCase()}</div>` :
+                    `<div class="devil-logo w-8 h-8 bg-red-950/60 border border-red-800/80 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <svg width="20" height="20" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M30 35L15 15C15 15 28 25 35 32Z" fill="#ef4444"/>
+                            <path d="M70 35L85 15C85 15 72 25 65 32Z" fill="#ef4444"/>
+                            <circle cx="50" cy="55" r="28" fill="#18181b" stroke="#ef4444" stroke-width="3"/>
+                            <path d="M38 50L45 53L40 57Z" fill="#ef4444"/>
+                            <path d="M62 50L55 53L60 57Z" fill="#ef4444"/>
+                            <path d="M40 68Q50 78 60 68" stroke="#ef4444" stroke-width="3" stroke-linecap="round" fill="none"/>
+                            <path d="M50 83C50 95 75 90 70 75C66 65 55 70 60 60" stroke="#ef4444" stroke-width="3" stroke-linecap="round" fill="none"/>
+                        </svg>
+                    </div>`;
+
+                let contentHtml = '';
+                if (msg.isLoading) {
+                    contentHtml = `<div class="flex items-center gap-2 text-zinc-400 text-sm py-2"><i class="fa-solid fa-circle-notch fa-spin text-red-500"></i> ${msg.text}</div>`;
+                } else {
+                    let formattedText = formatMarkdown(msg.text);
+                    contentHtml = `<div class="text-sm text-zinc-200 leading-relaxed space-y-2">${formattedText}</div>`;
+                    if (msg.image) {
+                        contentHtml += `<div class="mt-2"><img src="${msg.image}" class="max-w-xs rounded-xl border border-bordercolor"></div>`;
+                    }
+                }
+
+                if (isUser) {
+                    msgDiv.innerHTML = `
+                        <div class="bg-zinc-800/80 border border-bordercolor rounded-2xl px-4 py-3 max-w-xl shadow-md">
+                            ${contentHtml}
+                        </div>
+                        ${avatarHtml}
+                    `;
+                } else {
+                    msgDiv.innerHTML = `
+                        ${avatarHtml}
+                        <div class="bg-cardbg border border-bordercolor rounded-2xl px-4 py-3 max-w-2xl w-full shadow-lg">
+                            ${contentHtml}
+                        </div>
+                    `;
+                }
+                container.appendChild(msgDiv);
+            });
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // Markdown & Code Block Formatter
+        function formatMarkdown(text) {
+            // Escape code blocks and format
+            let html = escapeHtml(text);
+
+            // Replace code blocks with copy & preview buttons
+            html = html.replace(/```([\w-]*)\n([\s\S]*?)```/g, (match, lang, code) => {
+                const decodedCode = unescapeHtml(code);
+                const codeId = 'code_' + Math.random().toString(36.25);
+                const isHtml = lang.toLowerCase() === 'html' || decodedCode.includes('<html') || decodedCode.includes('<!DOCTYPE');
+
+                return `
+                    <div class="my-3 bg-zinc-950 border border-bordercolor rounded-xl overflow-hidden">
+                        <div class="bg-zinc-900 px-4 py-2 border-b border-bordercolor flex items-center justify-between text-xs">
+                            <span class="text-zinc-400 font-mono font-semibold">${lang || 'code'}</span>
+                            <div class="flex items-center gap-2">
+                                ${isHtml ? `<button onclick="previewHtmlCode('${codeId}')" class="bg-red-600 hover:bg-red-700 text-white px-2.5 py-1 rounded-lg text-[10px] font-medium flex items-center gap-1 transition"><i class="fa-solid fa-play"></i> Xem trước</button>` : ''}
+                                <button onclick="copyCode(this, '${codeId}')" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-2.5 py-1 rounded-lg text-[10px] font-medium flex items-center gap-1 transition"><i class="fa-regular fa-copy"></i> Sao chép</button>
+                            </div>
+                        </div>
+                        <pre class="p-4 overflow-x-auto text-xs text-zinc-100 font-mono"><code id="${codeId}">${decodedCode}</code></pre>
+                    </div>
+                `;
+            });
+
+            // Bold text
+            html = html.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-white">$1</strong>');
+            // Bullet points
+            html = html.replace(/^- (.*$)/gm, '<li class="ml-4 list-disc">$1</li>');
+            // Line breaks
+            html = html.replace(/\n/g, '<br>');
+
+            return html;
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        }
+
+        function unescapeHtml(str) {
+            return str.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#039;/g, "'");
+        }
+
+        function copyCode(btn, elementId) {
+            const codeText = document.getElementById(elementId).innerText;
+            const textarea = document.createElement('textarea');
+            textarea.value = codeText;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+
+            const origHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-check text-green-400"></i> Đã chép';
+            setTimeout(() => {
+                btn.innerHTML = origHtml;
+            }, 2000);
+        }
+
+        function previewHtmlCode(elementId) {
+            const codeText = document.getElementById(elementId).innerText;
+            const iframe = document.getElementById('previewIframe');
+            iframe.srcdoc = codeText;
+            document.getElementById('previewModal').classList.remove('hidden');
+        }
+
+        function closePreviewModal() {
+            document.getElementById('previewModal').classList.add('hidden');
+        }
+
+        function openSettingsModal() {
+            document.getElementById('customApiKeyInput').value = customApiKey;
+            document.getElementById('settingsModal').classList.remove('hidden');
+        }
+
+        function closeSettingsModal() {
+            document.getElementById('settingsModal').classList.add('hidden');
+        }
+
+        function saveSettings() {
+            customApiKey = document.getElementById('customApiKeyInput').value.trim();
+            closeSettingsModal();
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('-translate-x-full');
+        }
+    </script>
+</body>
+</html>
